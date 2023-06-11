@@ -4,25 +4,26 @@ namespace Hoochicken\Dbtable;
 
 use PDO;
 
-class Database
+abstract class Database
 {
     const PORT_DEFAULT = 3306;
-    const TABLE_NAME = 'statistics';
+    const TABLE_NAME = 'table_name';
     const DB_DRIVER = 'mysql';
     const DSN_KEY_HOST = 'host';
     const DSN_KEY_DATABASE = 'dbname';
     const DSN_KEY_PORT = 'port';
     const DSN_KEY_PASSWORD = 'password';
     const DSN_KEY_USER = 'user';
+    const COLUMN_ID = 'id';
 
-    private string $host = '';
-    private int $port = self::PORT_DEFAULT;
-    private string $user = '';
-    private string $password = '';
-    private string $dsn = '';
-    private string $database = '';
-    private string $table = self::TABLE_NAME;
-    private ?PDO $db;
+    private static string $host = '';
+    private static int $port = self::PORT_DEFAULT;
+    private static string $user = '';
+    private static string $password = '';
+    private static string $dsn = '';
+    private static string $database = '';
+    private static string $table = self::TABLE_NAME;
+    private static ?PDO $db;
 
 
     public function __construct(string $host, string $database, string $user, string $password, int $port = self::PORT_DEFAULT)
@@ -32,8 +33,8 @@ class Database
         $this->setUser($user);
         $this->setPassword($password);
         $this->setPort($port);
-        $this->dsn = $this->generateDsn();
-        $this->db = $this->initDb($this->dsn, $this->user, $this->password);
+        $this->setDsn($this->generateDsn());
+        $this->setDb($this->initDb($this->getDsn(), $this->getUser(), $this->getPassword()));
     }
 
     private function initDb(string $dsn, string $user, string $password): PDO
@@ -61,28 +62,20 @@ class Database
         return implode($glue, $array);
     }
 
-    public function test()
+    public function createTable(string $tablename, array $definition)
     {
-        echo 'assssssssssssssssd';
+        $sql = sprintf('CREATE TABLE `%s` (%s)', $tablename, implode(',', $definition));
+        $statement = $this->getDb()->prepare($sql);
+        $statement->execute();
+        $sql = sprintf('ALTER TABLE `%s` ADD PRIMARY KEY (`%s`);', $tablename, self::COLUMN_ID);
+        $statement = $this->getDb()->prepare($sql);
+        $statement->execute();
+        $sql = sprintf('ALTER TABLE `%s` MODIFY `%s` int(20) NOT NULL AUTO_INCREMENT; COMMIT;', $tablename, self::COLUMN_ID);
+        $statement = $this->getDb()->prepare($sql);
+        $statement->execute();
     }
 
-    public function createTable()
-    {
-        $sql = 'CREATE TABLE `analytics` (
-  `id` int(20) NOT NULL,
-  `page_url` varchar(150) NOT NULL,
-  `entry_time` datetime NOT NULL,
-  `exit_time` datetime NOT NULL,
-  `ip_address` varchar(30) NOT NULL,
-  `country` varchar(50) NOT NULL,
-  `operating_system` varchar(20) NOT NULL,
-  `browser` varchar(20) NOT NULL,
-  `browser_version` varchar(20) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-)';
-    }
-
-    public function getDb()
+    public function queryDb()
     {
         $sql = 'SELECT name, color, calories FROM fruit ORDER BY name';
         foreach ($this->db->query($sql) as $row) {
@@ -92,70 +85,95 @@ class Database
         }
     }
 
-    public function tableExists()
+    public function tableExists(string $tablename): bool
     {
         $sql = sprintf('SELECT table_name FROM information_schema.tables WHERE table_schema = "%s" AND table_name = "%s"',
-            $this->database, $this->table);
-        return false;
+            $this->getDatabase(),
+            $tablename);
+        $statement = $this->getDb()->prepare($sql);
+        $statement->execute();
+        $result = $statement->fetch();
+        $statement->fetchObject();
+        return is_array($result) && 0 < count($result);
     }
 
     public function setHost(string $value)
     {
-        $this->host = $value;
+        self::$host = $value;
     }
 
     public function getHost(): string
     {
-        return $this->host;
+        return self::$host;
     }
 
     public function setPort(int $value)
     {
-        $this->port = $value;
+        self::$port = $value;
     }
 
     public function getPort(): int
     {
-        return $this->port;
+        return self::$port;
     }
 
     public function setDatabase(string $value)
     {
-        $this->database = $value;
+        self::$database = $value;
     }
 
     public function getDatabase(): string
     {
-        return $this->database;
+        return self::$database;
     }
 
     public function setUser(string $value)
     {
-        $this->user = $value;
+        self::$user = $value;
     }
 
     public function getUser(): string
     {
-        return $this->user;
+        return self::$user;
     }
 
     public function setPassword(string $value)
     {
-        $this->password = $value;
+        self::$password = $value;
     }
 
     public function getPassword(): string
     {
-        return $this->password;
+        return self::$password;
     }
 
     public function setDsn(string $value)
     {
-        $this->dsn = $value;
+        self::$dsn = $value;
     }
 
     public function getDsn(): string
     {
-        return $this->dsn;
+        return self::$dsn;
+    }
+
+    public function setDb(PDO $value)
+    {
+        self::$db = $value;
+    }
+
+    public function getDb(): PDO
+    {
+        return self::$db;
+    }
+
+    public function setTable(string $value)
+    {
+        self::$table = $value;
+    }
+
+    public function getTable(): string
+    {
+        return self::$table;
     }
 }
