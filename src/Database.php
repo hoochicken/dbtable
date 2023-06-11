@@ -16,14 +16,15 @@ abstract class Database
     const DSN_KEY_USER = 'user';
     const COLUMN_ID = 'id';
 
-    private static string $host = '';
-    private static int $port = self::PORT_DEFAULT;
-    private static string $user = '';
-    private static string $password = '';
-    private static string $dsn = '';
-    private static string $database = '';
-    private static string $table = self::TABLE_NAME;
-    private static ?PDO $db;
+    protected static string $host = '';
+    protected static int $port = self::PORT_DEFAULT;
+    protected static string $user = '';
+    protected static string $password = '';
+    protected static string $dsn = '';
+    protected static string $database = '';
+    protected static string $table = self::TABLE_NAME;
+    protected static ?PDO $db;
+    protected static array $definition = [self::COLUMN_ID => '`id` int(20) NOT NULL'];
 
 
     public function __construct(string $host, string $database, string $user, string $password, int $port = self::PORT_DEFAULT)
@@ -45,13 +46,13 @@ abstract class Database
     private function generateDsn(): string
     {
         $dsn = [];
-        if (!empty($this->getHost())) $dsn[self::DSN_KEY_HOST] = $this->getHost();
-        if (!empty($this->getDatabase())) $dsn[self::DSN_KEY_DATABASE] = $this->getDatabase();
-        // if (!empty($this->getPort())) $dsn[self::DSN_KEY_PORT] = $this->getPort();
-        // if (!empty($this->getUser())) $dsn[self::DSN_KEY_USER] = $this->getUser();
-        // if (!empty($this->getPassword())) $dsn[self::DSN_KEY_PASSWORD] = $this->getPassword();
+        if (!empty($this->getHost())) $dsn[static::DSN_KEY_HOST] = $this->getHost();
+        if (!empty($this->getDatabase())) $dsn[static::DSN_KEY_DATABASE] = $this->getDatabase();
+        // if (!empty($this->getPort())) $dsn[static::DSN_KEY_PORT] = $this->getPort();
+        // if (!empty($this->getUser())) $dsn[static::DSN_KEY_USER] = $this->getUser();
+        // if (!empty($this->getPassword())) $dsn[static::DSN_KEY_PASSWORD] = $this->getPassword();
         $dsn = $this->getFlatStringFromArray($dsn);
-        return sprintf('%s%s%s', self::DB_DRIVER, ':', $dsn);
+        return sprintf('%s%s%s', static::DB_DRIVER, ':', $dsn);
     }
 
     private function getFlatStringFromArray(array $array, string $separator = '=', string $glue = ';'): string
@@ -67,22 +68,39 @@ abstract class Database
         $sql = sprintf('CREATE TABLE `%s` (%s)', $tablename, implode(',', $definition));
         $statement = $this->getDb()->prepare($sql);
         $statement->execute();
-        $sql = sprintf('ALTER TABLE `%s` ADD PRIMARY KEY (`%s`);', $tablename, self::COLUMN_ID);
+        $sql = sprintf('ALTER TABLE `%s` ADD PRIMARY KEY (`%s`);', $tablename, static::COLUMN_ID);
         $statement = $this->getDb()->prepare($sql);
         $statement->execute();
-        $sql = sprintf('ALTER TABLE `%s` MODIFY `%s` int(20) NOT NULL AUTO_INCREMENT; COMMIT;', $tablename, self::COLUMN_ID);
+        $sql = sprintf('ALTER TABLE `%s` MODIFY `%s` int(20) NOT NULL AUTO_INCREMENT; COMMIT;', $tablename, static::COLUMN_ID);
         $statement = $this->getDb()->prepare($sql);
         $statement->execute();
     }
 
-    public function queryDb()
+    public function getData(): array
     {
-        $sql = 'SELECT name, color, calories FROM fruit ORDER BY name';
-        foreach ($this->db->query($sql) as $row) {
-            print $row['name'] . "\t";
-            print $row['color'] . "\t";
-            print $row['calories'] . "\n";
+        $selector = implode (',', array_keys(static::$definition));
+        $sql = sprintf('SELECT %s FROM %s ORDER BY id DESC', $selector, static::TABLE_NAME);
+        $statement = $this->getDb()->prepare($sql);
+        $statement->execute();
+
+        $data = $statement->fetchAll();
+        if (!is_array($data) || empty($data)) {
+            return [];
         }
+        return $data;
+    }
+
+    public function addEntry(array $data)
+    {
+        $columns = implode(',', array_keys($data));
+
+        $valuesQuestionmarks = $data;
+        array_walk($valuesQuestionmarks, function(&$item) { $item = '?'; });
+        $valuesQuestionmarks = implode(',', $valuesQuestionmarks);
+
+        $sql = sprintf('INSERT INTO %s (%s) VALUES (%s)', static::TABLE_NAME, $columns, $valuesQuestionmarks);
+        $statement = $this->getDb()->prepare($sql);
+        $statement->execute(array_values($data));
     }
 
     public function tableExists(string $tablename): bool
@@ -99,81 +117,81 @@ abstract class Database
 
     public function setHost(string $value)
     {
-        self::$host = $value;
+        static::$host = $value;
     }
 
     public function getHost(): string
     {
-        return self::$host;
+        return static::$host;
     }
 
     public function setPort(int $value)
     {
-        self::$port = $value;
+        static::$port = $value;
     }
 
     public function getPort(): int
     {
-        return self::$port;
+        return static::$port;
     }
 
     public function setDatabase(string $value)
     {
-        self::$database = $value;
+        static::$database = $value;
     }
 
     public function getDatabase(): string
     {
-        return self::$database;
+        return static::$database;
     }
 
     public function setUser(string $value)
     {
-        self::$user = $value;
+        static::$user = $value;
     }
 
     public function getUser(): string
     {
-        return self::$user;
+        return static::$user;
     }
 
     public function setPassword(string $value)
     {
-        self::$password = $value;
+        static::$password = $value;
     }
 
     public function getPassword(): string
     {
-        return self::$password;
+        return static::$password;
     }
 
     public function setDsn(string $value)
     {
-        self::$dsn = $value;
+        static::$dsn = $value;
     }
 
     public function getDsn(): string
     {
-        return self::$dsn;
+        return static::$dsn;
     }
 
     public function setDb(PDO $value)
     {
-        self::$db = $value;
+        static::$db = $value;
     }
 
     public function getDb(): PDO
     {
-        return self::$db;
+        return static::$db;
     }
 
     public function setTable(string $value)
     {
-        self::$table = $value;
+        static::$table = $value;
     }
 
     public function getTable(): string
     {
-        return self::$table;
+        return static::$table;
     }
 }
