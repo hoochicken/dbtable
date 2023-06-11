@@ -16,6 +16,8 @@ abstract class Database
     const DSN_KEY_USER = 'user';
     const COLUMN_ID = 'id';
 
+    protected static $columnAutoincrement = self::COLUMN_ID;
+
     protected static string $host = '';
     protected static int $port = self::PORT_DEFAULT;
     protected static string $user = '';
@@ -63,7 +65,7 @@ abstract class Database
         return implode($glue, $array);
     }
 
-    public function createTable(string $tablename, array $definition)
+    public function createTable(string $tablename, array $definition, string $columnAutoincrement = self::COLUMN_ID)
     {
         $sql = sprintf('CREATE TABLE `%s` (%s)', $tablename, implode(',', $definition));
         $statement = $this->getDb()->prepare($sql);
@@ -71,15 +73,15 @@ abstract class Database
         $sql = sprintf('ALTER TABLE `%s` ADD PRIMARY KEY (`%s`);', $tablename, static::COLUMN_ID);
         $statement = $this->getDb()->prepare($sql);
         $statement->execute();
-        $sql = sprintf('ALTER TABLE `%s` MODIFY `%s` int(20) NOT NULL AUTO_INCREMENT; COMMIT;', $tablename, static::COLUMN_ID);
+        $sql = sprintf('ALTER TABLE `%s` MODIFY `%s` int(20) NOT NULL AUTO_INCREMENT; COMMIT;', $tablename, $columnAutoincrement);
         $statement = $this->getDb()->prepare($sql);
         $statement->execute();
     }
 
     public function getData(): array
     {
-        $selector = implode (',', array_keys(static::$definition));
-        $sql = sprintf('SELECT %s FROM %s ORDER BY id DESC', $selector, static::TABLE_NAME);
+        $selector = implode(',', array_keys(static::$definition));
+        $sql = sprintf('SELECT %s FROM %s ORDER BY id DESC', $selector, static::getTable());
         $statement = $this->getDb()->prepare($sql);
         $statement->execute();
 
@@ -98,9 +100,16 @@ abstract class Database
         array_walk($valuesQuestionmarks, function(&$item) { $item = '?'; });
         $valuesQuestionmarks = implode(',', $valuesQuestionmarks);
 
-        $sql = sprintf('INSERT INTO %s (%s) VALUES (%s)', static::TABLE_NAME, $columns, $valuesQuestionmarks);
+        $sql = sprintf('INSERT INTO %s (%s) VALUES (%s)', static::getTable(), $columns, $valuesQuestionmarks);
         $statement = $this->getDb()->prepare($sql);
         $statement->execute(array_values($data));
+    }
+
+    public function removeEntryById(int $id)
+    {
+        $sql = sprintf('DELETE FROM %s WHERE %s = %s', static::getTable(), static::getAutoincrement(), $id);
+        $statement = $this->getDb()->prepare($sql);
+        $statement->execute();
     }
 
     public function tableExists(string $tablename): bool
@@ -193,5 +202,15 @@ abstract class Database
     public function getTable(): string
     {
         return static::$table;
+    }
+
+    public function setAutoincrement(string $value)
+    {
+        static::$columnAutoincrement = $value;
+    }
+
+    public function getAutoincrement(): string
+    {
+        return static::$columnAutoincrement;
     }
 }
