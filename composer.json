@@ -1,6 +1,6 @@
 {
     "name": "hoochicken/dbtable",
-    "description": "datagrid",
+    "description": "Display content of database table",
     "license": "MIT",
     "authors": [
         {
