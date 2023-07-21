@@ -78,10 +78,26 @@ abstract class Database
         $statement->execute();
     }
 
-    public function getData(): array
+    public function getData(array $selector = [], int $limit = 1000): array
     {
-        $selector = implode(',', array_keys(static::$definition));
-        $sql = sprintf('SELECT %s FROM %s ORDER BY id DESC', $selector, static::getTable());
+        $selector = 0 < count($selector) ? $selector : array_keys(static::$definition);
+        $selector = implode(',', $selector);
+        $sql = sprintf('SELECT %s FROM %s ORDER BY %s DESC LIMIT %d', $selector, static::getTable(), static::COLUMN_ID, $limit);
+        $statement = $this->getDb()->prepare($sql);
+        $statement->execute();
+
+        $data = $statement->fetchAll();
+        if (!is_array($data) || empty($data)) {
+            return [];
+        }
+        return $data;
+    }
+
+    public function getDataGroupBy(array $selector = [], string $groupBy = '', int $limit = 1000): array
+    {
+        $selector = 0 < count($selector) ? $selector : array_keys(static::$definition);
+        $selector = implode(',', $selector);
+        $sql = sprintf('SELECT %s FROM %s GROUP BY %s ORDER BY %s DESC', $selector, static::getTable(), $groupBy, static::COLUMN_ID, $limit);
         $statement = $this->getDb()->prepare($sql);
         $statement->execute();
 
