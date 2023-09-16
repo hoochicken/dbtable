@@ -25,6 +25,7 @@ abstract class Database
     protected static string $dsn = '';
     protected static string $database = '';
     protected static string $table = self::TABLE_NAME;
+    protected string $where = '';
     protected static ?PDO $db;
     protected static array $definition = [self::COLUMN_ID => '`id` int(20) NOT NULL'];
 
@@ -80,9 +81,12 @@ abstract class Database
 
     public function getData(array $selector = [], int $limit = 1000): array
     {
+        $where = !empty($this->getWhere())
+            ? 'WHERE ' . $this->getWhere()
+            : '';
         $selector = 0 < count($selector) ? $selector : array_keys(static::$definition);
         $selector = implode(',', $selector);
-        $sql = sprintf('SELECT %s FROM %s ORDER BY %s DESC LIMIT %d', $selector, static::getTable(), static::COLUMN_ID, $limit);
+        $sql = sprintf('SELECT %s FROM %s %s ORDER BY %s DESC LIMIT %d', $selector, static::getTable(), $where, static::COLUMN_ID, $limit);
         $statement = $this->getDb()->prepare($sql);
         $statement->execute();
 
@@ -93,11 +97,29 @@ abstract class Database
         return $data;
     }
 
+    public function setWhere(string $where = '')
+    {
+        $this->where = $where;
+    }
+
+    public function resetWhere()
+    {
+        $this->where = '';
+    }
+
+    public function getWhere(): string
+    {
+        return $this->where;
+    }
+
     public function getDataGroupBy(array $selector = [], string $groupBy = '', int $limit = 1000): array
     {
+        $where = !empty($this->getWhere())
+            ? 'WHERE ' . $this->getWhere()
+            : '';
         $selector = 0 < count($selector) ? $selector : array_keys(static::$definition);
         $selector = implode(',', $selector);
-        $sql = sprintf('SELECT %s FROM %s GROUP BY %s ORDER BY %s DESC', $selector, static::getTable(), $groupBy, static::COLUMN_ID, $limit);
+        $sql = sprintf('SELECT %s FROM %s %s GROUP BY %s ORDER BY %s DESC', $selector, static::getTable(), $where, $groupBy, static::COLUMN_ID, $limit);
         $statement = $this->getDb()->prepare($sql);
         $statement->execute();
 
@@ -119,6 +141,19 @@ abstract class Database
         $sql = sprintf('INSERT INTO %s (%s) VALUES (%s)', static::getTable(), $columns, $valuesQuestionmarks);
         $statement = $this->getDb()->prepare($sql);
         $statement->execute(array_values($data));
+    }
+
+    public function updateEntries(array $data, string $where = '')
+    {
+        $where = !empty($where)
+            ? 'WHERE ' . $where
+            : '';
+        array_walk($data, function (&$item, $key) {
+            $item = sprintf('`%s`= "%s"', $key, $item);
+        });
+        $sql = sprintf('UPDATE %s SET %s %s', static::getTable(), implode(', ', $data), $where);
+        $statement = $this->getDb()->prepare($sql);
+        $statement->execute();
     }
 
     public function removeEntryById(int $id)
