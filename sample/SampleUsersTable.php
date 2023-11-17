@@ -52,7 +52,8 @@ class SampleUsersTable extends Database
 
     public function getEntryById(int $id): array
     {
-        $data = parent::getData([], sprintf('id = %s', $id));
+        $this->setWhere(sprintf('id = %s', $id));
+        $data = parent::getData([], 1);
         return $data[0] ?? [];
     }
 
